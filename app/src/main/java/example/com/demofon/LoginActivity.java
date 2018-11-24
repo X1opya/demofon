@@ -24,6 +24,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public class LoginActivity extends AppCompatActivity {
     SharedPreferences sharedPreferences;
     SharedPreferences.Editor editor;
+    boolean isTokenRefreshed;
 
     LinearLayout cont;
     ProgressBar p;
@@ -35,7 +36,8 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
         sharedPreferences = getSharedPreferences(StaticFields.PREFERENCE_NAME,MODE_PRIVATE);
         editor =sharedPreferences.edit();
-        if(sharedPreferences.getString(StaticFields.PREFERENCE_TOKEN,"")!="") finish();
+        Bundle extras = getIntent().getExtras();
+        isTokenRefreshed = extras.getBoolean("refresh_token",false);
         cont = findViewById(R.id.main_cont);
         p = findViewById(R.id.progressBar);
     }
@@ -89,9 +91,11 @@ public class LoginActivity extends AppCompatActivity {
                     editor.putString(StaticFields.PREFERENCE_TOKEN, response.body().access_token);
                     editor.putString(StaticFields.PREFERENCE_REFRESH_TOKEN, response.body().refresh_token);
                     editor.apply();
-                    showProgresBar(false);
                     finish();
+                }else if(response.code()==401) {
+                    getToken(sharedPreferences.getString(StaticFields.PREFERENCE_REFRESH_TOKEN, ""));
                 }
+                showProgresBar(false);
             }
 
             @Override
@@ -105,7 +109,9 @@ public class LoginActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         Uri uri = getIntent().getData();
-        if(uri!=null && uri.toString().startsWith(StaticFields.REDIRECT_URI)){
+        if (isTokenRefreshed) {
+            getToken(sharedPreferences.getString(StaticFields.PREFERENCE_REFRESH_TOKEN,""));
+        } else if (uri != null && uri.toString().startsWith(StaticFields.REDIRECT_URI)) {
             String code = uri.getQueryParameter("code");
             getToken(code);
         }

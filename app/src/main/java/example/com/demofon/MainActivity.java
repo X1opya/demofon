@@ -34,11 +34,29 @@ public class MainActivity extends AppCompatActivity {
     Retrofit retrofit;
     OkHttpClient client;
 
+    SharedPreferences sharedPreferences;
+    SharedPreferences.Editor editor;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        startLogin();
+        sharedPreferences = getSharedPreferences(StaticFields.PREFERENCE_NAME,MODE_PRIVATE);
+        editor =sharedPreferences.edit();
+        if(sharedPreferences.getString(StaticFields.PREFERENCE_TOKEN,"")=="") startAuth();
+
+    }
+
+    private void startAuth() {
+        Intent authIntent = new Intent(this,LoginActivity.class);
+        authIntent.putExtra("refresh_token",false);
+        startActivity(authIntent);
+    }
+
+    private void startRefreshToken() {
+        Intent authIntent = new Intent(this,LoginActivity.class);
+        authIntent.putExtra("refresh_token",true);
+        startActivity(authIntent);
     }
 
     @Override
@@ -58,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initRetrofit(){
-        String token = getSharedPreferences(StaticFields.PREFERENCE_NAME,MODE_PRIVATE).getString(StaticFields.PREFERENCE_TOKEN,"");
+        String token = sharedPreferences.getString(StaticFields.PREFERENCE_TOKEN,"");
         final JWT jwt = new JWT(token);
 
         OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
@@ -92,13 +110,16 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(Call<List<RelayModel>> call, Response<List<RelayModel>> response) {
                 if (response.isSuccessful()) {
                     rvRelays.setAdapter(new RelayAdapter(getBaseContext(), response.body(), api));
-                    showProgressBar(false);
+
                 }
+                if (response.code()==401) startRefreshToken();
+                showProgressBar(false);
             }
+
 
             @Override
             public void onFailure(Call<List<RelayModel>> call, Throwable t) {
-
+                showProgressBar(false);
             }
         });
 
@@ -116,14 +137,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void startLogin(){
-        startActivity(new Intent(this,LoginActivity.class));
-    }
+
 
     public void onClickLogout(View view) {
-        SharedPreferences.Editor editor = getSharedPreferences(StaticFields.PREFERENCE_NAME,MODE_PRIVATE).edit();
-        editor.putString(StaticFields.PREFERENCE_TOKEN,"");
-        editor.apply();
-        startLogin();
+        startAuth();
     }
 }
